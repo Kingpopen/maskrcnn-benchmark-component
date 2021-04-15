@@ -32,11 +32,16 @@ class RPNLossComputation(object):
             box_coder (BoxCoder)
         """
         # self.target_preparator = target_preparator
+        # anchor 匹配器，用于匹配anchor和target（因为每一个像素点都包含有9个anchor，所以每一个anchor应该和哪一个target来计算损伤，这个需要通过proposal_match来进行匹配）
         self.proposal_matcher = proposal_matcher
+        # 前景和背景的采集器，因为每一个像素点都对应有9个anchor，那每一个anchor是前景还是背景需要进行选择判断
         self.fg_bg_sampler = fg_bg_sampler
+        # 边框编码器，用于将anchor进行编码或者解码，用于计算损伤
         self.box_coder = box_coder
+        # 初始化需要复制的属性
         self.copied_fields = []
         self.generate_labels_func = generate_labels_func
+        # 指定需要放弃的anchor类型
         self.discard_cases = ['not_visibility', 'between_thresholds']
 
     def match_targets_to_anchors(self, anchor, target, copied_fields=[]):
