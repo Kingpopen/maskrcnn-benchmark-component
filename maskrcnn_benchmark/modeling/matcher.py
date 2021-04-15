@@ -15,9 +15,18 @@ class Matcher(object):
     The matcher returns a tensor of size N containing the index of the ground-truth
     element m that matches to prediction n. If there is no match, a negative value
     is returned.
-    """
+    这个类是用来给每一个预测的元素（例如box，mask 等等）分配一个GT
+    每个预测的元素将有0个或者1个所匹配（0个就是相当于是背景）
+    每一个GT将会被对应到0个或者多个预测的元素
 
+    匹配的方式是通过M x N 维度的矩阵，它将predict element 和 GT对应起来
+    如果预测的元素为boxes ，这个矩阵将会包含box的IOU值
+
+    matcher的返回值为...
+    """
+    # 低于阈值
     BELOW_LOW_THRESHOLD = -1
+    # 比较模糊的数值
     BETWEEN_THRESHOLDS = -2
 
     def __init__(self, high_threshold, low_threshold, allow_low_quality_matches=False):
@@ -33,6 +42,16 @@ class Matcher(object):
             allow_low_quality_matches (bool): if True, produce additional matches
                 for predictions that have only low-quality match candidates. See
                 set_low_quality_matches_ for more details.
+
+        参数：
+            high_threshold:大于等于这个值的被认为是候选的match
+            low_threshold:
+            分三种情况
+                         1) matches >= high_threshold
+                         2) BETWEEN_THRESHOLDS:matches between [low_threshold, high_threshold)  被赋值为-2
+                         3) BELOW_LOW_THRESHOLD：matches between [0, low_threshold)   被赋值为-1
+
+
         """
         assert low_threshold <= high_threshold
         self.high_threshold = high_threshold
@@ -49,7 +68,12 @@ class Matcher(object):
             matches (Tensor[int64]): an N tensor where N[i] is a matched gt in
             [0, M - 1] or a negative value indicating that prediction i could not
             be matched.
+
+        返回值：
+             N维的tensor
+             N[i]的值为gt的下标，范围为[0, M - 1],或者为一个负值，表示该predict没有匹配的GT
         """
+        # 保证每一张图片里面都至少有一个instance
         if match_quality_matrix.numel() == 0:
             # empty targets or proposals not supported during training
             if match_quality_matrix.shape[0] == 0:
@@ -63,7 +87,9 @@ class Matcher(object):
 
         # match_quality_matrix is M (gt) x N (predicted)
         # Max over gt elements (dim 0) to find best gt candidate for each prediction
+        # 给每一个predict寻找其匹配值最大的值 以及 其下标
         matched_vals, matches = match_quality_matrix.max(dim=0)
+        # 如果允许低于阈值的也是作为候选者，则所有的matches都是
         if self.allow_low_quality_matches:
             all_matches = matches.clone()
 

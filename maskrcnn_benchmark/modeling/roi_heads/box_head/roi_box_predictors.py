@@ -3,6 +3,7 @@ from maskrcnn_benchmark.modeling import registry
 from torch import nn
 
 
+# 对特征先进行池化，再使用边框分类器进行分类和边框回归器进行回归
 @registry.ROI_BOX_PREDICTOR.register("FastRCNNPredictor")
 class FastRCNNPredictor(nn.Module):
     def __init__(self, config, in_channels):
@@ -11,10 +12,14 @@ class FastRCNNPredictor(nn.Module):
 
         num_inputs = in_channels
 
+        # 分类的类别数= 类别数 + 1（背景）
         num_classes = config.MODEL.ROI_BOX_HEAD.NUM_CLASSES
+        # 进行全局平均池化
         self.avgpool = nn.AdaptiveAvgPool2d(1)
+        # 全连接层用于分类
         self.cls_score = nn.Linear(num_inputs, num_classes)
         num_bbox_reg_classes = 2 if config.MODEL.CLS_AGNOSTIC_BBOX_REG else num_classes
+        # 全连接层用于box的坐标回归
         self.bbox_pred = nn.Linear(num_inputs, num_bbox_reg_classes * 4)
 
         nn.init.normal_(self.cls_score.weight, mean=0, std=0.01)
@@ -31,6 +36,7 @@ class FastRCNNPredictor(nn.Module):
         return cls_logit, bbox_pred
 
 
+# 不进行池化  直接展平 使用边框分类器和边框回归器进行回归
 @registry.ROI_BOX_PREDICTOR.register("FPNPredictor")
 class FPNPredictor(nn.Module):
     def __init__(self, cfg, in_channels):

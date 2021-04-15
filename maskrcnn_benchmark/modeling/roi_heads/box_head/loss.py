@@ -37,9 +37,13 @@ class FastRCNNLossComputation(object):
         self.cls_agnostic_bbox_reg = cls_agnostic_bbox_reg
 
     def match_targets_to_proposals(self, proposal, target):
+        # gt 和 预测框之间的 IOU
         match_quality_matrix = boxlist_iou(target, proposal)
+
+        # 预测边框和对应的gt的索引， 背景边框为-2 ， 模糊边框为-1 .eg:matched_idxs[4] = 6 :表示第5个预测边框所分配的GT的id为6
         matched_idxs = self.proposal_matcher(match_quality_matrix)
-        # Fast RCNN only need "labels" field for selecting the targets
+        # Fast RCNN only need "labels" field for selecting the targets、
+        # 获得 GT 的类别标签
         target = target.copy_with_fields("labels")
         # get the targets corresponding GT for each proposal
         # NB: need to clamp the indices because we can have a single

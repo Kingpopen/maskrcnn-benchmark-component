@@ -50,6 +50,11 @@ class Pooler(nn.Module):
     Also, the requirement of passing the scales is not strictly necessary, as they
     can be inferred from the size of the feature map / size of original image,
     which is available thanks to the BoxList.
+
+    池化类用于有或者没有FPN的检测过程
+    里面包含有ROIAlign的实现
+    scales参数不是必要的， 因为它可由feature map / orginal image的大小推理得出来
+
     """
 
     def __init__(self, output_size, scales, sampling_ratio):
@@ -61,6 +66,8 @@ class Pooler(nn.Module):
         """
         super(Pooler, self).__init__()
         poolers = []
+
+        # 对不同尺寸的特征图进行ROIAlign操作
         for scale in scales:
             poolers.append(
                 ROIAlign(

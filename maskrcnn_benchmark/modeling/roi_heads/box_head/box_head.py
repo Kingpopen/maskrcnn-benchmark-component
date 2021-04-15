@@ -15,9 +15,13 @@ class ROIBoxHead(torch.nn.Module):
 
     def __init__(self, cfg, in_channels):
         super(ROIBoxHead, self).__init__()
+        # ROI层中的特征提取器（先进行ROI Align，后续有没有特征提取操作看具体head的方法）
         self.feature_extractor = make_roi_box_feature_extractor(cfg, in_channels)
+
+        # ROI层中的边框预测类（用于类别的分类和box的回归~）
         self.predictor = make_roi_box_predictor(
             cfg, self.feature_extractor.out_channels)
+        # ROI层中的后处理类（进行NMS操作和box解码等操作）
         self.post_processor = make_roi_box_post_processor(cfg)
         self.loss_evaluator = make_roi_box_loss_evaluator(cfg)
 

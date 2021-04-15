@@ -9,15 +9,19 @@ from maskrcnn_benchmark.modeling.poolers import Pooler
 from maskrcnn_benchmark.modeling.make_layers import group_norm
 from maskrcnn_benchmark.modeling.make_layers import make_fc
 
-
+# 使用 ResNet50中的conv5来提取roi特征
 @registry.ROI_BOX_FEATURE_EXTRACTORS.register("ResNet50Conv5ROIFeatureExtractor")
 class ResNet50Conv5ROIFeatureExtractor(nn.Module):
     def __init__(self, config, in_channels):
         super(ResNet50Conv5ROIFeatureExtractor, self).__init__()
 
+        # roi pooling之后的特征图大小， 一般为 7*7
         resolution = config.MODEL.ROI_BOX_HEAD.POOLER_RESOLUTION
+        # 获得原始图像和各个特征图之间的尺寸比例
         scales = config.MODEL.ROI_BOX_HEAD.POOLER_SCALES
         sampling_ratio = config.MODEL.ROI_BOX_HEAD.POOLER_SAMPLING_RATIO
+
+        # 池化类 内含有 ROI Align
         pooler = Pooler(
             output_size=(resolution, resolution),
             scales=scales,
@@ -42,6 +46,7 @@ class ResNet50Conv5ROIFeatureExtractor(nn.Module):
 
     def forward(self, x, proposals):
         x = self.pooler(x, proposals)
+        # 进行RoIAlign之后继续进行conv特征提取
         x = self.head(x)
         return x
 
