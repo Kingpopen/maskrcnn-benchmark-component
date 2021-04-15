@@ -16,6 +16,7 @@ class FastRCNNLossComputation(object):
     """
     Computes the loss for Faster R-CNN.
     Also supports FPN
+    对Faster-RCNN部分的loss进行计算
     """
 
     def __init__(
@@ -49,19 +50,26 @@ class FastRCNNLossComputation(object):
         # NB: need to clamp the indices because we can have a single
         # GT in the image, and matched_idxs can be -2, which goes
         # out of bounds
+
+        # 将所有的背景边框和模糊边框的标签都对应成第一个gt的标签
         matched_targets = target[matched_idxs.clamp(min=0)]
+        # 将对应的列表索引添加至gt列表中
         matched_targets.add_field("matched_idxs", matched_idxs)
         return matched_targets
 
+    # 计算出所有预测边框所对应的GT边框
     def prepare_targets(self, proposals, targets):
+        # 类别标签列表
         labels = []
+        # 回归box标签列表
         regression_targets = []
+        # 分别对每一张图片进行操作
         for proposals_per_image, targets_per_image in zip(proposals, targets):
             matched_targets = self.match_targets_to_proposals(
                 proposals_per_image, targets_per_image
             )
             matched_idxs = matched_targets.get_field("matched_idxs")
-
+            # 获取每一个target所对应的label标签
             labels_per_image = matched_targets.get_field("labels")
             labels_per_image = labels_per_image.to(dtype=torch.int64)
 
@@ -172,6 +180,7 @@ class FastRCNNLossComputation(object):
 
 
 def make_roi_box_loss_evaluator(cfg):
+    # 判断前景和背景的matcher
     matcher = Matcher(
         cfg.MODEL.ROI_HEADS.FG_IOU_THRESHOLD,
         cfg.MODEL.ROI_HEADS.BG_IOU_THRESHOLD,

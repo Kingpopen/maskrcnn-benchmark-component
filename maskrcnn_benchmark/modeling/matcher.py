@@ -87,7 +87,7 @@ class Matcher(object):
 
         # match_quality_matrix is M (gt) x N (predicted)
         # Max over gt elements (dim 0) to find best gt candidate for each prediction
-        # 给每一个predict寻找其匹配值最大的值 以及 其下标
+        # 给每一个predict寻找其匹配值最大的值(一个列表，包含每一个proposal与GT的最大值IOU) 以及 其下标（一个列表，每一个proposal所对应的GT下标）
         matched_vals, matches = match_quality_matrix.max(dim=0)
         # 如果允许低于阈值的也是作为候选者，则所有的matches都是
         if self.allow_low_quality_matches:
