@@ -14,6 +14,10 @@ class BoxList(object):
     to an image, we also store the corresponding image dimensions.
     They can contain extra information that is specific to each bounding box, such as
     labels.
+
+    这个类是用来表示一个bounding boxes列表的
+    bounding boxes表示为一个 Nx4的Tensor
+    这个类同时可以包含bounding box的其他信息，例如标签信息
     """
 
     def __init__(self, bbox, image_size, mode="xyxy"):
@@ -34,11 +38,14 @@ class BoxList(object):
         self.bbox = bbox
         self.size = image_size  # (image_width, image_height)
         self.mode = mode
+        # 使用一个字典保存额外的信息 （label等）
         self.extra_fields = {}
 
+    # 添加额外的信息
     def add_field(self, field, field_data):
         self.extra_fields[field] = field_data
 
+    # 获取额外的信息
     def get_field(self, field):
         return self.extra_fields[field]
 
@@ -236,6 +243,15 @@ class BoxList(object):
         return area
 
     def copy_with_fields(self, fields, skip_missing=False):
+        '''
+        Args:
+            fields: 需要进行拷贝的“信息名”， 相当于字典的key
+            skip_missing:
+        将该对象的bbox进行拷贝，构造成一个信息BoxList类
+        然后将需要的“信息名”，添加到新的BoxList对象当中去
+        Returns:
+            新的BoxList对象
+        '''
         bbox = BoxList(self.bbox, self.size, self.mode)
         if not isinstance(fields, (list, tuple)):
             fields = [fields]

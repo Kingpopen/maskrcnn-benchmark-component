@@ -1,7 +1,7 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 import torch
 
-
+# 正负样本的选择器（因为要权衡好正负样本的比例）
 class BalancedPositiveNegativeSampler(object):
     """
     This class samples batches, ensuring that they contain a fixed proportion of positives
@@ -24,13 +24,15 @@ class BalancedPositiveNegativeSampler(object):
                 -1 values are ignored, 0 are considered as negatives and > 0 as
                 positives.
 
+        matched_idxs中包含每一个proposal的label值.(0为背景， -1为被忽视的类， positive值为相应的类别号)
+
         Returns:
             pos_idx (list[tensor])
             neg_idx (list[tensor])
 
         Returns two lists of binary masks for each image.
         The first list contains the positive elements that were selected,
-        and the second list the negative example.
+        and the second list the negative example.0
         """
         pos_idx = []
         neg_idx = []

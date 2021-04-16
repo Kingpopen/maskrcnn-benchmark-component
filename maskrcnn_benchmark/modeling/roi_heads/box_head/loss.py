@@ -44,7 +44,7 @@ class FastRCNNLossComputation(object):
         # 预测边框和对应的gt的索引， 背景边框为-2 ， 模糊边框为-1 .eg:matched_idxs[4] = 6 :表示第5个预测边框所分配的GT的id为6
         matched_idxs = self.proposal_matcher(match_quality_matrix)
         # Fast RCNN only need "labels" field for selecting the targets、
-        # 获得 GT 的类别标签
+        # 获得 GT 的类别标签（这是一个BoxList对象）
         target = target.copy_with_fields("labels")
         # get the targets corresponding GT for each proposal
         # NB: need to clamp the indices because we can have a single
@@ -65,21 +65,25 @@ class FastRCNNLossComputation(object):
         regression_targets = []
         # 分别对每一张图片进行操作
         for proposals_per_image, targets_per_image in zip(proposals, targets):
+            # matched_targets为proposal所对应的label值
             matched_targets = self.match_targets_to_proposals(
                 proposals_per_image, targets_per_image
             )
+            # matched_idxs里面包含有-1 和 -2的值
             matched_idxs = matched_targets.get_field("matched_idxs")
+
             # 获取每一个target所对应的label标签
             labels_per_image = matched_targets.get_field("labels")
             labels_per_image = labels_per_image.to(dtype=torch.int64)
 
             # Label background (below the low threshold)
+            # 将低于阈值的标签设置为背景类（因为在match_targets_to_proposals函数里面将低于阈值的和处于阈值之间的label设置成第一个GT的类别，现在要将它改成背景类）
             bg_inds = matched_idxs == Matcher.BELOW_LOW_THRESHOLD
             labels_per_image[bg_inds] = 0
 
             # Label ignore proposals (between low and high thresholds)
             ignore_inds = matched_idxs == Matcher.BETWEEN_THRESHOLDS
-            labels_per_image[ignore_inds] = -1  # -1 is ignored by sampler
+            labels_per_image[ignore_inds] = -1  # -1 is ignored by sampler   sampler 会将它忽视掉
 
             # compute regression targets
             regression_targets_per_image = self.box_coder.encode(
@@ -96,13 +100,18 @@ class FastRCNNLossComputation(object):
         This method performs the positive/negative sampling, and return
         the sampled proposals.
         Note: this function keeps a state.
+        这个函数用来生成正负样本，返回值为相应的proposals
 
         Arguments:
             proposals (list[BoxList])
             targets (list[BoxList])
+
+            BoxList类要看一下（已看完）
         """
 
+        # 得到GT的label和GT的regression（这个regression值不是单纯的坐标值，而是一些坐标转换的参数）
         labels, regression_targets = self.prepare_targets(proposals, targets)
+        # 按照一定的方式选取背景框和目标边框，并返回其标签，
         sampled_pos_inds, sampled_neg_inds = self.fg_bg_sampler(labels)
 
         proposals = list(proposals)
