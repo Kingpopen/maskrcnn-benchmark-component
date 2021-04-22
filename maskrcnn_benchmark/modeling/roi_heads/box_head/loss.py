@@ -107,11 +107,14 @@ class FastRCNNLossComputation(object):
             targets (list[BoxList])
 
             BoxList类要看一下（已看完）
+        返回值：
+        proposal：# proposal中的数目是采样之后正负样本的总数，不是所有proposals的总数
         """
 
         # 得到GT的label和GT的regression（这个regression值不是单纯的坐标值，而是一些坐标转换的参数）
+        # labels， regression都是列表类型
         labels, regression_targets = self.prepare_targets(proposals, targets)
-        # 按照一定的方式选取背景框和目标边框，并返回其标签，
+        # 按照一定的方式选取背景框和目标边框，并返回其标签 得到列表类型
         sampled_pos_inds, sampled_neg_inds = self.fg_bg_sampler(labels)
 
         proposals = list(proposals)
@@ -126,6 +129,7 @@ class FastRCNNLossComputation(object):
 
         # distributed sampled proposals, that were obtained on all feature maps
         # concatenated via the fg_bg_sampler, into individual feature map levels
+        # 将已经被采样器选择用来训练的proposals提取出来
         for img_idx, (pos_inds_img, neg_inds_img) in enumerate(
             zip(sampled_pos_inds, sampled_neg_inds)
         ):
@@ -133,6 +137,7 @@ class FastRCNNLossComputation(object):
             proposals_per_image = proposals[img_idx][img_sampled_inds]
             proposals[img_idx] = proposals_per_image
 
+        # proposal中的数目是采样之后正负样本的总数，不是所有proposals的总数
         self._proposals = proposals
         return proposals
 
@@ -140,7 +145,7 @@ class FastRCNNLossComputation(object):
         """
         Computes the loss for Faster R-CNN.
         This requires that the subsample method has been called beforehand.
-
+        要求提前调用好采样的函数（保证proposals和target的数目保持一致）
         Arguments:
             class_logits (list[Tensor])
             box_regression (list[Tensor])
@@ -150,7 +155,10 @@ class FastRCNNLossComputation(object):
             box_loss (Tensor)
         """
 
+        # 保持列数不变，不断添加行数(行数为batch size图片数目)
+        # class_logits 为预测的类别 shape:(batch size, num_subsample)
         class_logits = cat(class_logits, dim=0)
+        # box_regression为预测的回归值  shape:(batch size, num_subsample * 4)
         box_regression = cat(box_regression, dim=0)
         device = class_logits.device
 
@@ -159,24 +167,32 @@ class FastRCNNLossComputation(object):
 
         proposals = self._proposals
 
+        # labels shape is (batch size, num_sub_sample)
         labels = cat([proposal.get_field("labels") for proposal in proposals], dim=0)
         regression_targets = cat(
             [proposal.get_field("regression_targets") for proposal in proposals], dim=0
         )
 
+        # 计算分类的交叉熵损失
         classification_loss = F.cross_entropy(class_logits, labels)
 
         # get indices that correspond to the regression targets for
         # the corresponding ground truth labels, to be used with
         # advanced indexing
+        # 获取正样本的索引和正样本的类别值
         sampled_pos_inds_subset = torch.nonzero(labels > 0).squeeze(1)
         labels_pos = labels[sampled_pos_inds_subset]
         if self.cls_agnostic_bbox_reg:
+            # 如果整个模型采用agnostic模型，即只分别含目标与不含目标两类
             map_inds = torch.tensor([4, 5, 6, 7], device=device)
         else:
+
+            # 找到 box regression 预测值的目标框的索引
+            # box regression预测值的维度(,4*class_num)
             map_inds = 4 * labels_pos[:, None] + torch.tensor(
                 [0, 1, 2, 3], device=device)
 
+        # 计算box的回归损失：smooth L1
         box_loss = smooth_l1_loss(
             box_regression[sampled_pos_inds_subset[:, None], map_inds],
             regression_targets[sampled_pos_inds_subset],
