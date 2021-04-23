@@ -17,7 +17,7 @@ class CombinedROIHeads(torch.nn.ModuleDict):
     def __init__(self, cfg, heads):
         super(CombinedROIHeads, self).__init__(heads)
         self.cfg = cfg.clone()
-        # 如果box和mask的head的特征共享，则将box head的features 赋值给mask head（这个地方不是很明白）
+        # 如果box和mask的head的特征共享，则将box head的features 赋值给mask head
         if cfg.MODEL.MASK_ON and cfg.MODEL.ROI_MASK_HEAD.SHARE_BOX_FEATURE_EXTRACTOR:
             self.mask.feature_extractor = self.box.feature_extractor
         if cfg.MODEL.KEYPOINT_ON and cfg.MODEL.ROI_KEYPOINT_HEAD.SHARE_BOX_FEATURE_EXTRACTOR:

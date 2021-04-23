@@ -280,3 +280,14 @@ if __name__ == "__main__":
     t_bbox = bbox.transpose(0)
     print(t_bbox)
     print(t_bbox.bbox)
+
+    label = [2, 3]
+    component = [2, 4]
+    img_id = [0, 1]
+
+    t_bbox.add_field("label", label)
+    t_bbox.add_field("component", component)
+    t_bbox.add_field("img_id", img_id)
+
+    temp = t_bbox.copy_with_fields(["label", "component"])
+    print("temp:", temp.extra_fields)

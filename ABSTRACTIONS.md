@@ -17,6 +17,7 @@ input types, including a list of tensors, and returns an `ImageList` object.
 
 ```python
 from maskrcnn_benchmark.structures.image_list import to_image_list
+import torch
 
 images = [torch.rand(3, 100, 200), torch.rand(3, 150, 170)]
 batched_images = to_image_list(images)
@@ -40,6 +41,7 @@ for each bounding box, such as labels, visibility, probability scores etc.
 Here is an example on how to create a `BoxList` from a list of coordinates:
 ```python
 from maskrcnn_benchmark.structures.bounding_box import BoxList, FLIP_LEFT_RIGHT
+import torch
 
 width = 100
 height = 200
