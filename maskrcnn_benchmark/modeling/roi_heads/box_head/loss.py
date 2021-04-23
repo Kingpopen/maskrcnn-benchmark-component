@@ -11,6 +11,8 @@ from maskrcnn_benchmark.modeling.balanced_positive_negative_sampler import (
 )
 from maskrcnn_benchmark.modeling.utils import cat
 
+
+#==================2021 04 23 修改 =========================
 # 包含有零件类别损失计算
 class FastRCNNLossComputation_component(object):
     """
@@ -434,7 +436,7 @@ def make_roi_box_loss_evaluator(cfg):
     cls_agnostic_bbox_reg = cfg.MODEL.CLS_AGNOSTIC_BBOX_REG
 
     # ==================2021 04 23 修改 =========================
-    if cfg.COMPONENT_BRANCH:
+    if cfg.MODEL.COMPONENT_BRANCH:
         loss_evaluator = FastRCNNLossComputation_component(
             matcher,
             fg_bg_sampler,

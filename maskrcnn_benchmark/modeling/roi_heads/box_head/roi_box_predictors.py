@@ -62,6 +62,47 @@ class FPNPredictor(nn.Module):
 
         return scores, bbox_deltas
 
+#==================2021 04 23 修改 =========================
+# 添加box的预测器 含components分支
+@registry.ROI_BOX_PREDICTOR.register("FPNPredictor_component")
+class FPNPredictor_component(nn.Module):
+    def __init__(self, cfg, in_channels):
+        super(FPNPredictor_component, self).__init__()
+        num_classes = cfg.MODEL.ROI_BOX_HEAD.NUM_CLASSES
+        # ==================2021 04 23 修改 =========================
+        num_components = cfg.MODEL.ROI_BOX_HEAD.NUM_COMPONENTS
+
+        representation_size = in_channels
+
+        self.cls_score = nn.Linear(representation_size, num_classes)
+        # ==================2021 04 23 修改 =========================
+        # 添加零件分支
+        self.component_score = nn.Linear(representation_size, num_components)
+
+        num_bbox_reg_classes = 2 if cfg.MODEL.CLS_AGNOSTIC_BBOX_REG else num_classes
+        self.bbox_pred = nn.Linear(representation_size, num_bbox_reg_classes * 4)
+
+        nn.init.normal_(self.cls_score.weight, std=0.01)
+        # ==================2021 04 23 修改 =========================
+        nn.init.normal_(self.component_score.weight, std=0.01)
+
+        nn.init.normal_(self.bbox_pred.weight, std=0.001)
+        # ==================2021 04 23 修改 =========================
+        for l in [self.cls_score, self.component_score, self.bbox_pred]:
+            nn.init.constant_(l.bias, 0)
+
+    def forward(self, x):
+        if x.ndimension() == 4:
+            assert list(x.shape[2:]) == [1, 1]
+            x = x.view(x.size(0), -1)
+        scores = self.cls_score(x)
+        # ==================2021 04 23 修改 =========================
+        component_scores = self.component_score(x)
+
+        bbox_deltas = self.bbox_pred(x)
+
+        return scores, component_scores, bbox_deltas
+
 
 def make_roi_box_predictor(cfg, in_channels):
     func = registry.ROI_BOX_PREDICTOR[cfg.MODEL.ROI_BOX_HEAD.PREDICTOR]

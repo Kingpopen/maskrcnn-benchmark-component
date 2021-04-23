@@ -27,6 +27,7 @@ class CombinedROIHeads(torch.nn.ModuleDict):
         losses = {}
         # TODO rename x to roi_box_features, if it doesn't increase memory consumption
         # box head的loss
+
         x, detections, loss_box = self.box(features, proposals, targets)
         losses.update(loss_box)
 
