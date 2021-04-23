@@ -82,7 +82,7 @@ class CarDamageDataset(CocoDetection):
 
     def __getitem__(self, idx):
         # img为读取的图片   anno为标注信息：segmentation  box  keypoint  component_id  categroy_id等
-        img, anno = super(COCODataset, self).__getitem__(idx)
+        img, anno = super(CarDamageDataset, self).__getitem__(idx)
 
         # filter crowd annotations
         # TODO might be better to add an extra field
