@@ -64,6 +64,7 @@ class GeneralizedRCNN(nn.Module):
         # 得到提取的图像特征
         features = self.backbone(images.tensors)
         # 通过rpn网络得到proposals和相应的loss值
+        # self.rpn返回值的proposals中是cat_Boxlist得到的结果list(BoxList) shape is （batch size，）
         proposals, proposal_losses = self.rpn(images, features, targets)
         if self.roi_heads:
             x, result, detector_losses = self.roi_heads(features, proposals, targets)

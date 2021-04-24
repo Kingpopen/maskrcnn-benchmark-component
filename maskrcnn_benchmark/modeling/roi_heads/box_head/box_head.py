@@ -65,6 +65,72 @@ class ROIBoxHead(torch.nn.Module):
             dict(loss_classifier=loss_classifier, loss_box_reg=loss_box_reg),
         )
 
+# 包含有零件分支的ROIBoxHead
+class ROIBoxHead_component(torch.nn.Module):
+    """
+    Generic Box Head class.
+    ROIBoxHead的主要内容是：1、特征提取  feature extractor
+                         2、边框和类别预测
+                         3、后续处理（测试阶段的非极大值抑制）
+
+    """
+
+    def __init__(self, cfg, in_channels):
+        super(ROIBoxHead_component, self).__init__()
+        # ROI层中的特征提取器（先进行ROI Align，后续有没有特征提取操作看具体head的方法）
+        self.feature_extractor = make_roi_box_feature_extractor(cfg, in_channels)
+
+        # ROI层中的边框预测类（用于类别的分类和box的回归~）
+        self.predictor = make_roi_box_predictor(
+            cfg, self.feature_extractor.out_channels)
+        # ROI层中的后处理类（进行NMS操作和box解码等操作）
+        self.post_processor = make_roi_box_post_processor(cfg)
+        self.loss_evaluator = make_roi_box_loss_evaluator(cfg)
+
+    def forward(self, features, proposals, targets=None):
+        """
+        Arguments:
+            features (list[Tensor]): feature-maps from possibly several levels
+            proposals (list[BoxList]): proposal boxes
+            targets (list[BoxList], optional): the ground-truth targets.
+
+        Returns:
+            x (Tensor): the result of the feature extractor
+            proposals (list[BoxList]): during training, the subsampled proposals
+                are returned. During testing, the predicted boxlists are returned
+            losses (dict[Tensor]): During training, returns the losses for the
+                head. During testing, returns an empty dict.
+        """
+
+        if self.training:
+            # Faster R-CNN subsamples during training the proposals with a fixed
+            # positive / negative ratio
+            # 如果是训练过程，就需要挑选一部分正负样本作为proposal，inference过程则用全部样本
+            with torch.no_grad():
+                proposals = self.loss_evaluator.subsample(proposals, targets)
+
+        # extract features that will be fed to the final classifier. The
+        # feature_extractor generally corresponds to the pooler + heads
+        x = self.feature_extractor(features, proposals)
+        # final classifier that converts the features into predictions
+        # ==================2021 04 24 修改 =========================
+        # 预测值多添加了一个component类别
+        class_logits, component_logits, box_regression = self.predictor(x)
+
+        if not self.training:
+            result = self.post_processor((class_logits, component_logits, box_regression), proposals)
+            return x, result, {}
+
+        loss_classifier, loss_box_reg = self.loss_evaluator(
+            [class_logits], [box_regression]
+        )
+        return (
+            x,
+            proposals,
+            dict(loss_classifier=loss_classifier, loss_box_reg=loss_box_reg),
+        )
+
+
 
 def build_roi_box_head(cfg, in_channels):
     """

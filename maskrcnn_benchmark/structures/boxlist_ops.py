@@ -1,7 +1,7 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 import torch
 
-from .bounding_box import BoxList
+from bounding_box import BoxList
 
 from maskrcnn_benchmark.layers import nms as _box_nms
 
@@ -105,6 +105,8 @@ def cat_boxlist(bboxes):
     Concatenates a list of BoxList (having the same image size) into a
     single BoxList
 
+    进行连接的所有的BoXList的image size要一致，
+
     Arguments:
         bboxes (list[BoxList])
     """
@@ -127,3 +129,23 @@ def cat_boxlist(bboxes):
         cat_boxes.add_field(field, data)
 
     return cat_boxes
+
+
+# 测试cat_boxlist函数
+if __name__ == '__main__':
+    proposal_box = torch.tensor([[1, 2, 3, 4],
+                                 [4, 5, 6, 7],
+                                 [8, 9, 0, 1]])
+    proposal_label = torch.tensor([1, 1, 1, 1])
+
+    proposal = BoxList(proposal_box, [1024, 888])
+
+    proposal.add_field("label", proposal_label)
+    index = [0, 1, 3]
+    result = proposal[index]
+    print("result.box:", result.bbox)
+    print("result.label:", result.get_field("label"))
+
+
+
+

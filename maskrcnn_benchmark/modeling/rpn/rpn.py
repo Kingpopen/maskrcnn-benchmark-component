@@ -174,6 +174,7 @@ class RPNModule(torch.nn.Module):
             losses：训练过程所对应的损失（如果是测试阶段这个地方就为空）
         """
         # RPN head得到每一个像素点的类别得分以及该像素点所对应的boxes
+        # objectness是指二分类的结果
         objectness, rpn_box_regression = self.head(features)
         anchors = self.anchor_generator(images, features)
 
@@ -192,7 +193,7 @@ class RPNModule(torch.nn.Module):
         else:
             # For end-to-end models, anchors must be transformed into boxes and
             # sampled into a training batch.
-            # 需要挑选出一部分box用于下一个阶段的训练
+            # 需要挑选出一部分box用于 下一个阶段的训练
             with torch.no_grad():
                 boxes = self.box_selector_train(
                     anchors, objectness, rpn_box_regression, targets

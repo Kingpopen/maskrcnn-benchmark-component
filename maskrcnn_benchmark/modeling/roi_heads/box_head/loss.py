@@ -134,6 +134,7 @@ class FastRCNNLossComputation_component(object):
             BoxList类要看一下（已看完）
         返回值：
         proposal：# proposal中的数目是采样之后正负样本的总数，不是所有proposals的总数
+        shape is [batch size, ]
         """
 
         # 得到GT的label和GT的regression（这个regression值不是单纯的坐标值，而是一些坐标转换的参数）
@@ -152,6 +153,7 @@ class FastRCNNLossComputation_component(object):
         #         "regression_targets", regression_targets_per_image
         #     )
         # ==================2021 04 23 修改 =========================
+        # labels,components,regression_targets, proposals shape is [batch_size,]
         for labels_per_image, components_per_image, regression_targets_per_image, proposals_per_image in zip(
             labels, components, regression_targets, proposals
         ):

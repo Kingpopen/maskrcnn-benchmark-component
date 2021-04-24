@@ -10,6 +10,7 @@ from maskrcnn_benchmark.structures.boxlist_ops import remove_small_boxes
 from ..utils import cat
 from .utils import permute_and_flatten
 
+# RPN后续处理类
 class RPNPostProcessor(torch.nn.Module):
     """
     Performs post-processing on the outputs of the RPN boxes, before feeding the
@@ -50,6 +51,7 @@ class RPNPostProcessor(torch.nn.Module):
         self.fpn_post_nms_top_n = fpn_post_nms_top_n
         self.fpn_post_nms_per_batch = fpn_post_nms_per_batch
 
+    # 添加GT 的proposals 这个函数还不是很明白
     def add_gt_proposals(self, proposals, targets):
         """
         Arguments:
@@ -58,11 +60,13 @@ class RPNPostProcessor(torch.nn.Module):
         """
         # Get the device we're operating on
         device = proposals[0].bbox.device
-
+        # 拷贝一个dataset中获得的boxlist对象（dataset中的target）（fields不进行拷贝）
         gt_boxes = [target.copy_with_fields([]) for target in targets]
 
         # later cat of bbox requires all fields to be present for all bbox
         # so we need to add a dummy for objectness that's missing
+        # gt_boxes中没有任何的field
+        # 添加一个objectness的fields
         for gt_box in gt_boxes:
             gt_box.add_field("objectness", torch.ones(len(gt_box), device=device))
 
@@ -77,6 +81,11 @@ class RPNPostProcessor(torch.nn.Module):
         """
         Arguments:
             anchors: list[BoxList]
+            N: batch size
+            A: num of anchor
+            H: height of image
+            W: width of image
+
             objectness: tensor of size N, A, H, W
             box_regression: tensor of size N, A * 4, H, W
         """
