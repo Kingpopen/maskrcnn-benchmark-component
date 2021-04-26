@@ -83,7 +83,7 @@ class ROIBoxHead_component(torch.nn.Module):
         # ROI层中的边框预测类（用于类别的分类和box的回归~）
         self.predictor = make_roi_box_predictor(
             cfg, self.feature_extractor.out_channels)
-        # ROI层中的后处理类（进行NMS操作和box解码等操作）
+        # ROI层中的后处理类（进行NMS操作和box解码等操作, 只有在验证和测试阶段才用）
         self.post_processor = make_roi_box_post_processor(cfg)
         self.loss_evaluator = make_roi_box_loss_evaluator(cfg)
 
@@ -101,6 +101,7 @@ class ROIBoxHead_component(torch.nn.Module):
             losses (dict[Tensor]): During training, returns the losses for the
                 head. During testing, returns an empty dict.
         """
+        # the len of proposals is batch size(一个batch size的图片数)
 
         if self.training:
             # Faster R-CNN subsamples during training the proposals with a fixed
@@ -112,22 +113,28 @@ class ROIBoxHead_component(torch.nn.Module):
         # extract features that will be fed to the final classifier. The
         # feature_extractor generally corresponds to the pooler + heads
         x = self.feature_extractor(features, proposals)
+
         # final classifier that converts the features into predictions
         # ==================2021 04 24 修改 =========================
         # 预测值多添加了一个component类别
+
+        # class_logits shape is (batch size * RPN提取出来的ROI数目， num_class)
         class_logits, component_logits, box_regression = self.predictor(x)
+
 
         if not self.training:
             result = self.post_processor((class_logits, component_logits, box_regression), proposals)
             return x, result, {}
 
-        loss_classifier, loss_box_reg = self.loss_evaluator(
-            [class_logits], [box_regression]
+        loss_classifier, loss_component, loss_box_reg = self.loss_evaluator(
+            [class_logits], [component_logits], [box_regression]
         )
+        #======================== 2021 04 26 change ========================
+        # 添加零件损伤损伤
         return (
             x,
             proposals,
-            dict(loss_classifier=loss_classifier, loss_box_reg=loss_box_reg),
+            dict(loss_classifier=loss_classifier, loss_component=loss_component, loss_box_reg=loss_box_reg),
         )
 
 
@@ -138,4 +145,7 @@ def build_roi_box_head(cfg, in_channels):
     By default, uses ROIBoxHead, but if it turns out not to be enough, just register a new class
     and make it a parameter in the config
     """
-    return ROIBoxHead(cfg, in_channels)
+    if cfg.MODEL.ROI_HEADS.COMPONENT_BRANCH:
+        return ROIBoxHead_component(cfg, in_channels)
+    else:
+        return ROIBoxHead(cfg, in_channels)

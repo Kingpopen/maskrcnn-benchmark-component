@@ -241,6 +241,7 @@ class PostProcessor_component(nn.Module):
             boxlist = self.prepare_boxlist(boxes_per_img, class_per_prob, component_per_prob, image_shape)
             boxlist = boxlist.clip_to_image(remove_empty=False)
             if not self.bbox_aug_enabled:  # If bbox aug is enabled, we will do it later
+                # 对proposal进行筛选
                 boxlist = self.filter_results(boxlist, num_classes)
             results.append(boxlist)
         return results
@@ -272,9 +273,12 @@ class PostProcessor_component(nn.Module):
     def filter_results(self, boxlist, num_classes):
         """Returns bounding-box detection results by thresholding on scores and
         applying non-maximum suppression (NMS).
+
+        筛选检测得到的目标框得分大于阈值 同时 进行NMS操作
         """
         # unwrap the boxlist to avoid additional overhead.
         # if we had multi-class NMS, we could perform this directly on the boxlist
+        # boxes中的 bbox 为回归后的坐标框
         boxes = boxlist.bbox.reshape(-1, num_classes * 4)
         scores = boxlist.get_field("scores").reshape(-1, num_classes)
 
@@ -325,12 +329,24 @@ def make_roi_box_post_processor(cfg):
     box_coder = BoxCoder(weights=bbox_reg_weights)
 
     score_thresh = cfg.MODEL.ROI_HEADS.SCORE_THRESH
+    # NMS的阈值
     nms_thresh = cfg.MODEL.ROI_HEADS.NMS
+    # 每张图片的检测的最大instance数目
     detections_per_img = cfg.MODEL.ROI_HEADS.DETECTIONS_PER_IMG
     cls_agnostic_bbox_reg = cfg.MODEL.CLS_AGNOSTIC_BBOX_REG
     bbox_aug_enabled = cfg.TEST.BBOX_AUG.ENABLED
 
-    postprocessor = PostProcessor(
+    if cfg.MODEL.ROI_HEADS.COMPONENT_BRANCH:
+        postprocessor = PostProcessor_component(
+            score_thresh,
+            nms_thresh,
+            detections_per_img,
+            box_coder,
+            cls_agnostic_bbox_reg,
+            bbox_aug_enabled
+        )
+    else:
+        postprocessor = PostProcessor(
         score_thresh,
         nms_thresh,
         detections_per_img,

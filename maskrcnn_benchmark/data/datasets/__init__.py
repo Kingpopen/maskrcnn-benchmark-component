@@ -4,7 +4,6 @@ from .coco import COCODataset
 from .voc import PascalVOCDataset
 from .concat_dataset import ConcatDataset
 from .abstract import AbstractDataset
-from .cityscapes import CityScapesDataset
 from .cardamage import CarDamageDataset
 
 __all__ = [
@@ -12,6 +11,5 @@ __all__ = [
     "ConcatDataset",
     "PascalVOCDataset",
     "AbstractDataset",
-    "CityScapesDataset",
     "CarDamageDataset",
 ]

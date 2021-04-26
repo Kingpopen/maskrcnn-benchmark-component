@@ -106,7 +106,7 @@ class FastRCNNLossComputation_component(object):
             # 照葫芦画瓢 给components设置被忽略的类别
             components_per_image[ignore_inds] = -1
 
-            # compute regression targets
+            # compute regression targets  计算需要进行回归的坐标参数值
             regression_targets_per_image = self.box_coder.encode(
                 matched_targets.bbox, proposals_per_image.bbox
             )
@@ -153,7 +153,7 @@ class FastRCNNLossComputation_component(object):
         #         "regression_targets", regression_targets_per_image
         #     )
         # ==================2021 04 23 修改 =========================
-        # labels,components,regression_targets, proposals shape is [batch_size,]
+        # labels,components,regression_targets, proposals shape is [batch_size , RPN网络输出的proposals数目]
         for labels_per_image, components_per_image, regression_targets_per_image, proposals_per_image in zip(
             labels, components, regression_targets, proposals
         ):
@@ -163,7 +163,6 @@ class FastRCNNLossComputation_component(object):
             proposals_per_image.add_field(
                 "regression_targets", regression_targets_per_image
             )
-
 
         # distributed sampled proposals, that were obtained on all feature maps
         # concatenated via the fg_bg_sampler, into individual feature map levels
@@ -196,22 +195,28 @@ class FastRCNNLossComputation_component(object):
         """
 
         # 保持列数不变，不断添加行数(行数为batch size图片数目)
-        # class_logits 为预测的类别 shape:(batch size, num_subsample)
+        # class_logits 为预测的类别 shape:(batch size*num_subsample, num_class)
         class_logits = cat(class_logits, dim=0)
 
         # ==================2021 04 23 修改 =========================
         component_logits = cat(component_logits, dim=0)
 
-        # box_regression为预测的回归值  shape:(batch size, num_subsample * 4)
+        # box_regression为预测的回归值  shape:(batch size*num_subsample, num_class * 4)
         box_regression = cat(box_regression, dim=0)
+
+        print("the shape of class_logits:", class_logits.shape)
+        print("the shape of component_logits:", component_logits.shape)
+        print("the shape of box_regression:", box_regression.shape)
+
         device = class_logits.device
 
         if not hasattr(self, "_proposals"):
             raise RuntimeError("subsample needs to be called before")
 
+        # proposals shape is (batch size, fg_bg_sample)
         proposals = self._proposals
 
-        # labels shape is (batch size, num_sub_sample)
+        # labels shape is (batch size * num_sub_sample, num_class)
         labels = cat([proposal.get_field("labels") for proposal in proposals], dim=0)
         # ==================2021 04 23 修改 =========================
         components = cat([proposal.get_field("components") for proposal in proposals], dim=0)
@@ -232,14 +237,18 @@ class FastRCNNLossComputation_component(object):
         sampled_pos_inds_subset = torch.nonzero(labels > 0).squeeze(1)
         labels_pos = labels[sampled_pos_inds_subset]
         if self.cls_agnostic_bbox_reg:
-            # 如果整个模型采用agnostic模型，即只分别含目标与不含目标两类
+            # 如果整个模型采用agnostic模型，即只输出该框应该回归的相应变量（正常的是有多少个类别，就总共输出多少个类别对应的回归相应变量）
             map_inds = torch.tensor([4, 5, 6, 7], device=device)
         else:
 
             # 找到 box regression 预测值的目标框的索引
-            # box regression预测值的维度(,4*class_num)
+            # box regression预测值的维度(batch size * fg_bg_sample, num_class * 4)
             map_inds = 4 * labels_pos[:, None] + torch.tensor(
                 [0, 1, 2, 3], device=device)
+
+        print("sampled_pos_inds_subset[:, None] shape is:", sampled_pos_inds_subset[:, None].shape)
+        print("box_regression shape is:", box_regression.shape)
+
 
         # 计算box的回归损失：smooth L1
         box_loss = smooth_l1_loss(
@@ -438,7 +447,7 @@ def make_roi_box_loss_evaluator(cfg):
     cls_agnostic_bbox_reg = cfg.MODEL.CLS_AGNOSTIC_BBOX_REG
 
     # ==================2021 04 23 修改 =========================
-    if cfg.MODEL.COMPONENT_BRANCH:
+    if cfg.MODEL.ROI_HEADS.COMPONENT_BRANCH:
         loss_evaluator = FastRCNNLossComputation_component(
             matcher,
             fg_bg_sampler,

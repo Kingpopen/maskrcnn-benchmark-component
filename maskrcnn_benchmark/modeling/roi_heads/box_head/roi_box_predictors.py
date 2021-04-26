@@ -85,7 +85,6 @@ class FPNPredictor_component(nn.Module):
         nn.init.normal_(self.cls_score.weight, std=0.01)
         # ==================2021 04 23 修改 =========================
         nn.init.normal_(self.component_score.weight, std=0.01)
-
         nn.init.normal_(self.bbox_pred.weight, std=0.001)
         # ==================2021 04 23 修改 =========================
         for l in [self.cls_score, self.component_score, self.bbox_pred]:
@@ -107,3 +106,4 @@ class FPNPredictor_component(nn.Module):
 def make_roi_box_predictor(cfg, in_channels):
     func = registry.ROI_BOX_PREDICTOR[cfg.MODEL.ROI_BOX_HEAD.PREDICTOR]
     return func(cfg, in_channels)
+

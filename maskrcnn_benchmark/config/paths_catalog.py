@@ -5,15 +5,26 @@ import os
 from copy import deepcopy
 
 class DatasetCatalog(object):
-    DATA_DIR = "datasets"
+    DATA_DIR = "/home/pengjinbo/kingpopen/Dataset/Car/damage/coco/ali_dataset_multi/"
     DATASETS = {
+        #==================2021 04 26 修改=======================
+        # 添加car damage 数据集路径
+        "cardamage_2017_train": {
+            "img_dir": "train/train2017",
+            "ann_file": "train/annotations/instances_train2017.json"
+        },
+        "cardamage_2017_val": {
+            "img_dir": "train/val2017",
+            "ann_file": "train/annotations/instances_val2017.json"
+        },
+
         "coco_2017_train": {
-            "img_dir": "coco/train2017",
-            "ann_file": "coco/annotations/instances_train2017.json"
+            "img_dir": "train/train2017",
+            "ann_file": "train/annotations/instances_train2017.json"
         },
         "coco_2017_val": {
-            "img_dir": "coco/val2017",
-            "ann_file": "coco/annotations/instances_val2017.json"
+            "img_dir": "train/val2017",
+            "ann_file": "train/annotations/instances_val2017.json"
         },
         "coco_2014_train": {
             "img_dir": "coco/train2014",
@@ -179,6 +190,21 @@ class DatasetCatalog(object):
             attrs["img_dir"] = os.path.join(data_dir, attrs["img_dir"])
             attrs["ann_dir"] = os.path.join(data_dir, attrs["ann_dir"])
             return dict(factory="CityScapesDataset", args=attrs)
+
+        # ==================2021 04 26 修改=======================
+        # 添加cardamage数据集
+        elif "cardamage" in name:
+            data_dir = DatasetCatalog.DATA_DIR
+            attrs = DatasetCatalog.DATASETS[name]
+            args = dict(
+                root=os.path.join(data_dir, attrs["img_dir"]),
+                ann_file=os.path.join(data_dir, attrs["ann_file"]),
+            )
+            return dict(
+                factory="CarDamageDataset",
+                args=args,
+            )
+
         raise RuntimeError("Dataset not available: {}".format(name))
 
 

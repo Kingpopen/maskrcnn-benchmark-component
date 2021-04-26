@@ -1,5 +1,6 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 # from ._utils import _C
+import torch
 from maskrcnn_benchmark import _C
 
 from apex import amp

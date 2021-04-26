@@ -177,6 +177,7 @@ _C.MODEL.RPN.RPN_HEAD = "SingleConvRPNHead"
 # ROI HEADS options
 # ---------------------------------------------------------------------------- #
 _C.MODEL.ROI_HEADS = CN()
+_C.MODEL.ROI_HEADS.COMPONENT_BRANCH = False
 _C.MODEL.ROI_HEADS.USE_FPN = False
 # Overlap threshold for an RoI to be considered foreground (if >= FG_IOU_THRESHOLD)
 _C.MODEL.ROI_HEADS.FG_IOU_THRESHOLD = 0.5
@@ -215,6 +216,7 @@ _C.MODEL.ROI_BOX_HEAD.POOLER_RESOLUTION = 14
 _C.MODEL.ROI_BOX_HEAD.POOLER_SAMPLING_RATIO = 0
 _C.MODEL.ROI_BOX_HEAD.POOLER_SCALES = (1.0 / 16,)
 _C.MODEL.ROI_BOX_HEAD.NUM_CLASSES = 81
+_C.MODEL.ROI_BOX_HEAD.NUM_COMPONENTS = 33
 # Hidden layer dimension when using an MLP for the RoI box head
 _C.MODEL.ROI_BOX_HEAD.MLP_HEAD_DIM = 1024
 # GN
@@ -414,7 +416,7 @@ _C.SOLVER.TEST_PERIOD = 0
 # Number of images per batch
 # This is global, so if we have 8 GPUs and IMS_PER_BATCH = 16, each GPU will
 # see 2 images per batch
-_C.SOLVER.IMS_PER_BATCH = 16
+_C.SOLVER.IMS_PER_BATCH = 2
 
 # ---------------------------------------------------------------------------- #
 # Specific test options

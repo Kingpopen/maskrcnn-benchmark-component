@@ -1,7 +1,7 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 import torch
 
-from bounding_box import BoxList
+from .bounding_box import BoxList
 
 from maskrcnn_benchmark.layers import nms as _box_nms
 
