@@ -8,7 +8,7 @@ from maskrcnn_benchmark.structures.bounding_box import BoxList
 
 
 # TODO check if want to return a single BoxList or a composite
-# object
+# object  这个部分的函数还需要重点阅读
 class MaskPostProcessor(nn.Module):
     """
     From the results of the CNN, post process the masks
@@ -18,6 +18,10 @@ class MaskPostProcessor(nn.Module):
 
     If a masker object is passed, it will additionally
     project the masks in the image according to the locations in boxes,
+
+    对predict mask所得到的结果进行后续处理操作，取概率最大的类别对应的mask，并将它放到BoxList中去。
+
+
     """
 
     def __init__(self, masker=None):
@@ -35,17 +39,22 @@ class MaskPostProcessor(nn.Module):
             results (list[BoxList]): one BoxList for each image, containing
                 the extra field mask
         """
+        # mask_prob shape is (每张图片预测的proposal数, num_class， 每张mask的维度（2维）)
         mask_prob = x.sigmoid()
 
+        print("mask_prob shape is:", mask_prob.shape)
         # select masks coresponding to the predicted classes
         num_masks = x.shape[0]
         labels = [bbox.get_field("labels") for bbox in boxes]
         labels = torch.cat(labels)
         index = torch.arange(num_masks, device=labels.device)
+        # 得到每个proposal所对应的mask shape is (proposal数, 1, mask.size)
         mask_prob = mask_prob[index, labels][:, None]
+        print("mask_prob shape is:", mask_prob.shape)
 
         boxes_per_image = [len(box) for box in boxes]
         mask_prob = mask_prob.split(boxes_per_image, dim=0)
+        print("mask_prob shape is:", mask_prob.shape)
 
         if self.masker:
             mask_prob = self.masker(mask_prob, boxes)
