@@ -242,7 +242,7 @@ class PostProcessor_component(nn.Module):
             boxlist = boxlist.clip_to_image(remove_empty=False)
             if not self.bbox_aug_enabled:  # If bbox aug is enabled, we will do it later
                 # 对proposal进行筛选
-                boxlist = self.filter_results(boxlist, num_classes)
+                boxlist = self.filter_results(boxlist, num_classes, num_components)
             results.append(boxlist)
         return results
 
@@ -270,7 +270,7 @@ class PostProcessor_component(nn.Module):
 
     # ==================2021 04 24 修改 =========================
     # 这个地方要着重看一下
-    def filter_results(self, boxlist, num_classes):
+    def filter_results(self, boxlist, num_classes, num_components):
         """Returns bounding-box detection results by thresholding on scores and
         applying non-maximum suppression (NMS).
 
@@ -279,8 +279,11 @@ class PostProcessor_component(nn.Module):
         # unwrap the boxlist to avoid additional overhead.
         # if we had multi-class NMS, we could perform this directly on the boxlist
         # boxes中的 bbox 为回归后的坐标框
+        #====================== 2021 04 27 修改=============================
         boxes = boxlist.bbox.reshape(-1, num_classes * 4)
         scores = boxlist.get_field("scores").reshape(-1, num_classes)
+        # 获取proposals的零件得分
+        component_scores = boxlist.get_field("component_scores").reshape(-1, num_components)
 
         device = scores.device
         result = []
@@ -288,15 +291,31 @@ class PostProcessor_component(nn.Module):
         # Skip j = 0, because it's the background class
         # 得到得分大于阈值的bool
         inds_all = scores > self.score_thresh
+
+        # 获取每一行中的component得分最大值及其下标 除掉了背景
+        # component_scores shape is [num_per_image_proposals, ]
+        component_scores, component_indexs = torch.max(component_scores[:, 1:], dim=-1)
+        # 加1的原因是之前去掉了背景类别 现在要把index对应上
+        component_indexs = component_indexs + 1
+
         for j in range(1, num_classes):
             # 第j类别中的大于阈值的item
             inds = inds_all[:, j].nonzero().squeeze(1)
             # 得到所有大于阈值的第j类别的得分
             scores_j = scores[inds, j]
+
+            # 给第j类的object赋予零件类别得分 以及零件类别
+            component_scores_j = component_scores[inds]
+            component_index_j = component_indexs[inds]
+
             # 得到所有大于阈值得分的第j类别对应的box
             boxes_j = boxes[inds, j * 4 : (j + 1) * 4]
             boxlist_for_class = BoxList(boxes_j, boxlist.size, mode="xyxy")
             boxlist_for_class.add_field("scores", scores_j)
+            # 添加零件得分 和 添加零件类别
+            boxlist_for_class.add_field("component_scores", component_scores_j)
+            boxlist_for_class.add_field("components", component_index_j)
+
             boxlist_for_class = boxlist_nms(
                 boxlist_for_class, self.nms
             )
@@ -310,6 +329,7 @@ class PostProcessor_component(nn.Module):
         number_of_detections = len(result)
 
         # Limit to max_per_image detections **over all classes**
+        # 如果NMS之后检测的instance数目大于限制输出的instance数目
         if number_of_detections > self.detections_per_img > 0:
             cls_scores = result.get_field("scores")
             image_thresh, _ = torch.kthvalue(
@@ -367,9 +387,21 @@ if __name__ == '__main__':
     print("prob:", prob)
     print("the shape of prob:", prob.shape)
 
-    class_prob = [[0.1, 0.6, 0.7, 0.1],
-                  [0.2, 0.6, 0.1, 0.1]]
+    class_prob = [[0.1, 0.5, 0.7, 0.1, 0.1],
+                  [0.1, 0.6, 0.1, 0.1, 0.1],
+                  [0.4, 0.1, 0.1, 0.3, 0.1]]
     class_prob = torch.tensor(class_prob, dtype=torch.float32)
+
+    index = class_prob > 0.3
+    print("index is:", index)
+
+    inds = index[:, 0].nonzero().squeeze(1)
+    print("inds:", inds)
+
+    print("class_prob_index[:, 1:]:", class_prob[:, 1:])
+    prob, index = torch.max(class_prob[:, 1:], dim=-1)
+    print("prob is:", prob)
+    print("index is:", index)
 
 
 

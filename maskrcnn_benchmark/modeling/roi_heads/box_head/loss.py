@@ -204,9 +204,9 @@ class FastRCNNLossComputation_component(object):
         # box_regression为预测的回归值  shape:(batch size*num_subsample, num_class * 4)
         box_regression = cat(box_regression, dim=0)
 
-        print("the shape of class_logits:", class_logits.shape)
-        print("the shape of component_logits:", component_logits.shape)
-        print("the shape of box_regression:", box_regression.shape)
+        # print("the shape of class_logits:", class_logits.shape)
+        # print("the shape of component_logits:", component_logits.shape)
+        # print("the shape of box_regression:", box_regression.shape)
 
         device = class_logits.device
 
@@ -242,12 +242,12 @@ class FastRCNNLossComputation_component(object):
         else:
 
             # 找到 box regression 预测值的目标框的索引
-            # box regression预测值的维度(batch size * fg_bg_sample, num_class * 4)
+            # box regression预测值的维度(,num_class * 4)
             map_inds = 4 * labels_pos[:, None] + torch.tensor(
                 [0, 1, 2, 3], device=device)
 
-        print("sampled_pos_inds_subset[:, None] shape is:", sampled_pos_inds_subset[:, None].shape)
-        print("box_regression shape is:", box_regression.shape)
+        # print("sampled_pos_inds_subset[:, None] shape is:", sampled_pos_inds_subset[:, None].shape)
+        # print("box_regression shape is:", box_regression.shape)
 
 
         # 计算box的回归损失：smooth L1

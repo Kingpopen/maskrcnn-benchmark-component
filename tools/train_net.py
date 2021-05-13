@@ -207,8 +207,8 @@ def main():
 
     model = train(cfg, args.local_rank, args.distributed)
 
-    if not args.skip_test:
-        run_test(cfg, model, args.distributed)
+    #if not args.skip_test:
+    #    run_test(cfg, model, args.distributed)
 
 
 if __name__ == "__main__":

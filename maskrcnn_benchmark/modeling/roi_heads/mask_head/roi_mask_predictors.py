@@ -11,11 +11,15 @@ from maskrcnn_benchmark.modeling import registry
 class MaskRCNNC4Predictor(nn.Module):
     def __init__(self, cfg, in_channels):
         super(MaskRCNNC4Predictor, self).__init__()
+        # 预测的类别数
         num_classes = cfg.MODEL.ROI_BOX_HEAD.NUM_CLASSES
+        # 反卷积的输入维度  是上一层卷积的输出
         dim_reduced = cfg.MODEL.ROI_MASK_HEAD.CONV_LAYERS[-1]
         num_inputs = in_channels
 
+        # 反卷积层生成mask
         self.conv5_mask = ConvTranspose2d(num_inputs, dim_reduced, 2, 2, 0)
+        # 1*1的卷积用于最后的输出
         self.mask_fcn_logits = Conv2d(dim_reduced, num_classes, 1, 1, 0)
 
         for name, param in self.named_parameters():

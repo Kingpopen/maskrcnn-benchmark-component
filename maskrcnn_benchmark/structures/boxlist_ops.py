@@ -136,15 +136,16 @@ if __name__ == '__main__':
     proposal_box = torch.tensor([[1, 2, 3, 4],
                                  [4, 5, 6, 7],
                                  [8, 9, 0, 1]])
-    proposal_label = torch.tensor([1, 1, 1, 1])
+    proposal_label = torch.tensor([9, 8, 7, 6, 5])
 
     proposal = BoxList(proposal_box, [1024, 888])
 
     proposal.add_field("label", proposal_label)
-    index = [0, 1, 3]
+    index = [0, 1, 2]
     result = proposal[index]
     print("result.box:", result.bbox)
     print("result.label:", result.get_field("label"))
+    print("len of result:", len(result))
 
 
 

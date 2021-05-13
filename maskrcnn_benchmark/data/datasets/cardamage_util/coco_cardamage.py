@@ -84,6 +84,7 @@ import numpy as np
 import copy
 import itertools
 from pycocotools import mask as maskUtils
+from pycocotools import coco
 import os
 from collections import defaultdict
 import sys
@@ -120,7 +121,7 @@ class COCOCarDamage:
             self.dataset = dataset
             self.createIndex()
 
-    # 给类变量初始化（重要）
+    # 给类变量初始化生成索引（重要）
     def createIndex(self):
         # create index
         print('creating index...')
@@ -151,7 +152,6 @@ class COCOCarDamage:
             for ann in self.dataset['annotations']:
                 catToImgs[ann['category_id']].append(ann['image_id'])
                 compToImgs[ann['component_id']].append(ann['image_id'])
-
         print('index created!')
 
         # create class members
@@ -338,7 +338,7 @@ class COCOCarDamage:
         elif type(ids) == int:
             return [self.imgs[ids]]
 
-    # 对annotation进行可视化处理（有些地方没太看懂）
+    # 对annotation进行可视化处理
     def showAnns(self, anns):
         """
         Display the specified annotations.
@@ -358,6 +358,7 @@ class COCOCarDamage:
         if datasetType == 'instances':
             ax = plt.gca()
             ax.set_autoscale_on(False)
+
             polygons = []
             color = []
             for ann in anns:
@@ -376,7 +377,13 @@ class COCOCarDamage:
                             rle = maskUtils.frPyObjects([ann['segmentation']], t['height'], t['width'])
                         else:
                             rle = [ann['segmentation']]
+
+                        # print("the shape of segmentation:", np.array(ann["segmentation"]).shape)
+
                         m = maskUtils.decode(rle)
+                        # print("the type of m:", type(m))
+                        # print("the shape of m:", m.shape)
+
                         img = np.ones( (m.shape[0], m.shape[1], 3) )
                         if ann['iscrowd'] == 1:
                             color_mask = np.array([2.0,166.0,101.0])/255
@@ -397,15 +404,37 @@ class COCOCarDamage:
                             plt.plot(x[sk],y[sk], linewidth=3, color=c)
                     plt.plot(x[v>0], y[v>0],'o',markersize=8, markerfacecolor=c, markeredgecolor='k',markeredgewidth=2)
                     plt.plot(x[v>1], y[v>1],'o',markersize=8, markerfacecolor=c, markeredgecolor=c, markeredgewidth=2)
+
+            # print("the shape of polygons:", np.array(polygons).shape)
+
             p = PatchCollection(polygons, facecolor=color, linewidths=0, alpha=0.4)
             ax.add_collection(p)
             p = PatchCollection(polygons, facecolor='none', edgecolors=color, linewidths=2)
             ax.add_collection(p)
+
+            # plt.savefig("./save.jpg")
+            # plt.show()
+            #
+            # fig = plt.figure()
+            # ax = fig.add_subplot(1, 1, 1)
+            #
+            # rect = plt.Rectangle((0.2, 0.75), 0.4, 0.15, color='k', alpha=0.3)
+            # circ = plt.Circle((0.7, 0.2), 0.15, color='b', alpha=0.3)
+            # pgon = plt.Polygon([[0.15, 0.15], [0.35, 0.4], [0.2, 0.6]],
+            #                    color='g', alpha=0.5)
+            #
+            # ax.add_patch(rect)
+            # ax.add_patch(circ)
+            # ax.add_patch(pgon)
+            # plt.savefig("./wuwuuw.jpg")
+
+
         elif datasetType == 'captions':
             for ann in anns:
                 print(ann['caption'])
 
-    # 对结果文件的处理（这个地方没太搞明白，结果文件是什么呢？）
+
+    # 生成预测结果的COCOCardamage对象的处理(通过传入模型预测结果的annotation，生成一个COCOCardamage对象)
     def loadRes(self, resFile):
         """
         Load result file and return a result api object.
@@ -482,31 +511,6 @@ class COCOCarDamage:
         res.createIndex()
         return res
 
-    # 下载COCO数据集
-    def download(self, tarDir = None, imgIds = [] ):
-        '''
-        Download COCO images from mscoco.org server.
-        :param tarDir (str): COCO results directory name
-               imgIds (list): images to be downloaded
-        :return:
-        '''
-        if tarDir is None:
-            print('Please specify target directory')
-            return -1
-        if len(imgIds) == 0:
-            imgs = self.imgs.values()
-        else:
-            imgs = self.loadImgs(imgIds)
-        N = len(imgs)
-        if not os.path.exists(tarDir):
-            os.makedirs(tarDir)
-        for i, img in enumerate(imgs):
-            tic = time.time()
-            fname = os.path.join(tarDir, img['file_name'])
-            if not os.path.exists(fname):
-                urlretrieve(img['coco_url'], fname)
-            print('downloaded {}/{} images (t={:0.1f}s)'.format(i, N, time.time()- tic))
-
 
     def loadNumpyAnnotations(self, data):
         """
@@ -538,6 +542,7 @@ class COCOCarDamage:
         Convert annotation which can be polygons, uncompressed RLE to RLE.
         :return: binary mask (numpy 2D array)
         """
+
         t = self.imgs[ann['image_id']]
         h, w = t['height'], t['width']
         segm = ann['segmentation']
@@ -563,3 +568,216 @@ class COCOCarDamage:
         rle = self.annToRLE(ann)
         m = maskUtils.decode(rle)
         return m
+
+    # 类别转换（用于评估阶段，需要将多分支的输出类别整合成单个类别）输入COCOCarDamage对象 返回 COCO对象
+    '''
+    我的coco格式标注数据格式介绍：
+    {
+        “images”:[
+        {
+            "height":...
+            "width":...
+            "id":...
+            "filename_name":...(纯图片名 不带路径)
+            }
+        ...
+        ...
+        ],
+        
+        “categories”:[ (存放损伤标签)
+        {
+            "supercategory": "scratch",
+            "id": 1,
+            "name": "scratch"
+            }
+        ...
+        ...
+        ],
+         
+        "components": [(存放零件标签)
+        {
+            "supercategory": "bumper",
+            "id": 1,
+            "name": "bumper"
+        }
+        ...
+        ...
+        ],
+        
+        "annotations":[
+    {
+      "iscrowd": 0,
+      "image_id": 1,
+      "bbox": [...],
+      "segmentation": [
+        [[...]]
+      ],
+      "category_id": 1,
+      "component_id": 1,
+      "id": 1,
+      "area": 18610.059492
+    },
+    ...
+    ...
+    ],  
+    }
+    '''
+    # 所以将多分支类别改为单分支类别 主要是更改categories 以及 annotation中的category_id
+    # 6种零件4种损伤 转化为单一的24种类别
+    def transformTo24(self):
+        '''
+        Args:
+            cococardamage: COCOCarDamage对象
+        Returns:
+            COCO对象
+        '''
+        # 生成24类别名 以及 其id
+        damage_name = ["scratch", "indentation", "crack", "perforation"]
+        component_name = ["bumper", "fender", "light", "rearview", "windshield", "others"]
+        categories_24_list = []
+        category_24_id = 0
+        for component in component_name:
+            for damage in damage_name:
+                category_dict = {}
+                category_24_id += 1
+                category_24_label = component + " " + damage
+                category_dict["supercategory"] = category_24_label
+                category_dict["id"] = category_24_id
+                category_dict["name"] = category_24_label
+                categories_24_list.append(category_dict)
+
+        # 获取已经读取的标注文件数据，相当于instance.json文件中的内容
+        dataset = self.dataset
+        dataset["categories"] = categories_24_list
+        # 对annotation中类别进行修改
+        annotations = dataset["annotations"]
+        new_annotations = []
+        for ann in annotations:
+            category_id = ann["category_id"]
+            component_id = ann["component_id"]
+            new_category_id = (int(component_id) - 1) * len(damage_name) + int(category_id)
+            ann["category_id"] = new_category_id
+            new_annotations.append(ann)
+        dataset["annotations"] = new_annotations
+        Coco = coco.COCO()
+        Coco.dataset = dataset
+        Coco.createIndex()
+        return Coco
+
+    # 13种零件4种损伤 转化为单一的52种类别
+    def transformTo52(self):
+        '''
+               Args:
+                   cococardamage: COCOCarDamage对象
+               Returns:
+                   COCO对象
+               '''
+        # 生成52类别名 以及 其id
+        damage_name = ["scratch", "indentation", "crack", "perforation"]
+        component_name = ["front bumper", "rear bumper", "front fender",
+                       "rear fender", "door", "rear taillight",
+                       "headlight", "hood", "luggage cover",
+                       "radiator grille", "bottom side", "rearview mirror",
+                       "license plate"]
+
+        categories_52_list = []
+        category_52_id = 0
+        for component in component_name:
+            for damage in damage_name:
+                category_dict = {}
+                category_52_id += 1
+                category_52_label = component + " " + damage
+                category_dict["supercategory"] = category_52_label
+                category_dict["id"] = category_52_id
+                category_dict["name"] = category_52_label
+                categories_52_list.append(category_dict)
+
+        # 获取已经读取的标注文件数据，相当于instance.json文件中的内容
+        dataset = self.dataset
+        dataset["categories"] = categories_52_list
+        # 对annotation中类别进行修改
+        annotations = dataset["annotations"]
+        new_annotations = []
+        for ann in annotations:
+            category_id = ann["category_id"]
+            component_id = ann["component_id"]
+            new_category_id = (int(component_id) - 1) * len(damage_name) + int(category_id)
+            ann["category_id"] = new_category_id
+            new_annotations.append(ann)
+        dataset["annotations"] = new_annotations
+        Coco = coco.COCO()
+        Coco.dataset = dataset
+        Coco.createIndex()
+        return Coco
+
+    # 32种零件5种损伤 转化为单一的160种类别
+    def transformTo160(self):
+        # 生成52类别名 以及 其id
+        damage_name = ["scratch", "indentation", "crack", "perforation"]
+        component_name = [
+            "front bumper", "rear bumper",
+            "front bumper grille", "front windshield",
+            "rear windshield", "front tire",
+            "rear tire", "front side glass",
+            "rear side glass", "front fender",
+            "rear fender", "front mudguard",
+            "rear mudguard", "turn signal",
+            "front door", "rear door",
+            "rear outer taillight", "rear inner taillight",
+            "headlight", "fog light",
+            "hood", "luggage cover",
+            "roof", "steel ring",
+            "radiator grille", "a pillar",
+            "b pillar", "c pillar",
+            "d pillar", "bottom side",
+            "rearview mirror", "license plate"]
+
+        categories_160_list = []
+        category_160_id = 0
+        for component in component_name:
+            for damage in damage_name:
+                category_dict = {}
+                category_160_id += 1
+                category_160_label = component + " " + damage
+                category_dict["supercategory"] = category_160_label
+                category_dict["id"] = category_160_id
+                category_dict["name"] = category_160_label
+                categories_160_list.append(category_dict)
+
+        # 获取已经读取的标注文件数据，相当于instance.json文件中的内容
+        dataset = self.dataset
+        dataset["categories"] = categories_160_list
+        # 对annotation中类别进行修改
+        annotations = dataset["annotations"]
+        new_annotations = []
+        for ann in annotations:
+            category_id = ann["category_id"]
+            component_id = ann["component_id"]
+            new_category_id = (int(component_id) - 1) * len(damage_name) + int(category_id)
+            ann["category_id"] = new_category_id
+            new_annotations.append(ann)
+        dataset["annotations"] = new_annotations
+        Coco = coco.COCO()
+        Coco.dataset = dataset
+        Coco.createIndex()
+        return Coco
+
+
+if __name__ == '__main__':
+    json_file = "/home/pengjinbo/kingpopen/Dataset/Car/damage/coco/ali_dataset_multi/val/annotations/instances_val2017.json"
+    cardamage = COCOCarDamage(json_file)
+    Coco = cardamage.transformTo24()
+    anns = Coco.loadAnns(Coco.getAnnIds([1]))
+
+    print("image id:", anns[0]["image_id"])
+    print("len of anns:", len(anns))
+    print("anns:", anns)
+
+    for ann in anns:
+        print("category_id:", ann["category_id"])
+
+    print("categories:", Coco.cats)
+
+
+
+

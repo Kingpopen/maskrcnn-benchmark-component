@@ -37,10 +37,14 @@ class ROIMaskHead(torch.nn.Module):
     def __init__(self, cfg, in_channels):
         super(ROIMaskHead, self).__init__()
         self.cfg = cfg.clone()
+        # mask head的特征提取器
         self.feature_extractor = make_roi_mask_feature_extractor(cfg, in_channels)
+        # mask head的预测器
         self.predictor = make_roi_mask_predictor(
             cfg, self.feature_extractor.out_channels)
+        # 进行样本的筛选（测试阶段才用）
         self.post_processor = make_roi_mask_post_processor(cfg)
+        # 损失的计算
         self.loss_evaluator = make_roi_mask_loss_evaluator(cfg)
 
     def forward(self, features, proposals, targets=None):
@@ -61,6 +65,7 @@ class ROIMaskHead(torch.nn.Module):
 
         if self.training:
             # during training, only focus on positive boxes
+            # 在训练过程仅仅只用到了正样本
             all_proposals = proposals
             proposals, positive_inds = keep_only_positive_boxes(proposals)
         if self.training and self.cfg.MODEL.ROI_MASK_HEAD.SHARE_BOX_FEATURE_EXTRACTOR:

@@ -31,6 +31,7 @@ class MaskRCNNFPNFeatureExtractor(nn.Module):
         resolution = cfg.MODEL.ROI_MASK_HEAD.POOLER_RESOLUTION
         scales = cfg.MODEL.ROI_MASK_HEAD.POOLER_SCALES
         sampling_ratio = cfg.MODEL.ROI_MASK_HEAD.POOLER_SAMPLING_RATIO
+        # ROI Align pooling的池化操作
         pooler = Pooler(
             output_size=(resolution, resolution),
             scales=scales,
@@ -40,7 +41,9 @@ class MaskRCNNFPNFeatureExtractor(nn.Module):
         self.pooler = pooler
 
         use_gn = cfg.MODEL.ROI_MASK_HEAD.USE_GN
+        # 卷积层(256, 256, 256, 256)
         layers = cfg.MODEL.ROI_MASK_HEAD.CONV_LAYERS
+        # 空洞卷积 相当于用了4层空洞卷积
         dilation = cfg.MODEL.ROI_MASK_HEAD.DILATION
 
         next_feature = input_size

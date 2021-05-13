@@ -42,7 +42,7 @@ class MaskPostProcessor(nn.Module):
         # mask_prob shape is (每张图片预测的proposal数, num_class， 每张mask的维度（2维）)
         mask_prob = x.sigmoid()
 
-        print("mask_prob shape is:", mask_prob.shape)
+        # print("mask_prob shape is:", mask_prob.shape)
         # select masks coresponding to the predicted classes
         num_masks = x.shape[0]
         labels = [bbox.get_field("labels") for bbox in boxes]
@@ -50,11 +50,11 @@ class MaskPostProcessor(nn.Module):
         index = torch.arange(num_masks, device=labels.device)
         # 得到每个proposal所对应的mask shape is (proposal数, 1, mask.size)
         mask_prob = mask_prob[index, labels][:, None]
-        print("mask_prob shape is:", mask_prob.shape)
+        # print("mask_prob shape is:", mask_prob.shape)
 
         boxes_per_image = [len(box) for box in boxes]
         mask_prob = mask_prob.split(boxes_per_image, dim=0)
-        print("mask_prob shape is:", mask_prob.shape)
+        # print("mask_prob shape is:", mask_prob.shape)
 
         if self.masker:
             mask_prob = self.masker(mask_prob, boxes)

@@ -14,8 +14,8 @@ class DatasetCatalog(object):
             "ann_file": "train/annotations/instances_train2017.json"
         },
         "cardamage_2017_val": {
-            "img_dir": "train/val2017",
-            "ann_file": "train/annotations/instances_val2017.json"
+            "img_dir": "val/val2017",
+            "ann_file": "val/annotations/instances_val2017.json"
         },
 
         "coco_2017_train": {

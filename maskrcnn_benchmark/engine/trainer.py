@@ -86,6 +86,7 @@ def do_train(
         losses = sum(loss for loss in loss_dict.values())
 
         # reduce losses over all GPUs for logging purposes
+        # 对并行计算的GPU上的损失统一计算
         loss_dict_reduced = reduce_loss_dict(loss_dict)
         losses_reduced = sum(loss for loss in loss_dict_reduced.values())
         meters.update(loss=losses_reduced, **loss_dict_reduced)
@@ -126,21 +127,24 @@ def do_train(
         if iteration % checkpoint_period == 0:
             checkpointer.save("model_{:07d}".format(iteration), **arguments)
         if data_loader_val is not None and test_period > 0 and iteration % test_period == 0:
+
+            print("=======开始计算验证集=========")
+
             meters_val = MetricLogger(delimiter="  ")
-            synchronize()
-            _ = inference(  # The result can be used for additional logging, e. g. for TensorBoard
-                model,
-                # The method changes the segmentation mask format in a data loader,
-                # so every time a new data loader is created:
-                make_data_loader(cfg, is_train=False, is_distributed=(get_world_size() > 1), is_for_period=True),
-                dataset_name="[Validation]",
-                iou_types=iou_types,
-                box_only=False if cfg.MODEL.RETINANET_ON else cfg.MODEL.RPN_ONLY,
-                device=cfg.MODEL.DEVICE,
-                expected_results=cfg.TEST.EXPECTED_RESULTS,
-                expected_results_sigma_tol=cfg.TEST.EXPECTED_RESULTS_SIGMA_TOL,
-                output_folder=None,
-            )
+            # synchronize()
+            # _ = inference(  # The result can be used for additional logging, e. g. for TensorBoard
+            #     model,
+            #     # The method changes the segmentation mask format in a data loader,
+            #     # so every time a new data loader is created:
+            #     make_data_loader(cfg, is_train=False, is_distributed=(get_world_size() > 1), is_for_period=True),
+            #     dataset_name="[Validation]",
+            #     iou_types=iou_types,
+            #     box_only=False if cfg.MODEL.RETINANET_ON else cfg.MODEL.RPN_ONLY,
+            #     device=cfg.MODEL.DEVICE,
+            #     expected_results=cfg.TEST.EXPECTED_RESULTS,
+            #     expected_results_sigma_tol=cfg.TEST.EXPECTED_RESULTS_SIGMA_TOL,
+            #     output_folder=None,
+            # )
             synchronize()
             model.train()
             with torch.no_grad():

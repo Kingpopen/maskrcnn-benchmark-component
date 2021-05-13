@@ -13,7 +13,7 @@ from maskrcnn_benchmark.structures.boxlist_ops import boxlist_iou
 
 
 # coco的测评函数
-def do_coco_evaluation(
+def do_cardamage_evaluation(
     dataset,
     predictions,
     box_only,
@@ -56,26 +56,28 @@ def do_coco_evaluation(
         return
     logger.info("Preparing results for COCO format")
     coco_results = {}
+    # 通过box来计算iou
     if "bbox" in iou_types:
         logger.info("Preparing bbox results")
         # 准备box的相关结果
         coco_results["bbox"] = prepare_for_coco_detection(predictions, dataset)
+    # 通过segmentation计算iou
     if "segm" in iou_types:
         logger.info("Preparing segm results")
         # 准备分割的相关结果
         coco_results["segm"] = prepare_for_coco_segmentation(predictions, dataset)
-    if 'keypoints' in iou_types:
-        logger.info('Preparing keypoints results')
-        # 准备keypoints的相关结果
-        coco_results['keypoints'] = prepare_for_coco_keypoint(predictions, dataset)
 
     results = COCOResults(*iou_types)
+
     logger.info("Evaluating predictions")
+    print("iou types are:", iou_types)
     for iou_type in iou_types:
         with tempfile.NamedTemporaryFile() as f:
             file_path = f.name
             if output_folder:
+                # 临时文件路径
                 file_path = os.path.join(output_folder, iou_type + ".json")
+                # 进行评估
             res = evaluate_predictions_on_coco(
                 dataset.coco, coco_results[iou_type], file_path, iou_type
             )
@@ -88,9 +90,17 @@ def do_coco_evaluation(
 
 # 准备读取detection的相关结果
 def prepare_for_coco_detection(predictions, dataset):
+    '''
+    Args:
+        predictions: 为BoxList格式
+        dataset: 为cardamagedataset对象
+
+    Returns:
+
+    '''
     # assert isinstance(dataset, COCODataset)
     coco_results = []
-    # 将prediction转化为coco的数据格式
+    # 将prediction转化为cococardamage的格式
     for image_id, prediction in enumerate(predictions):
         original_id = dataset.id_to_img_map[image_id]
         if len(prediction) == 0:
@@ -106,24 +116,30 @@ def prepare_for_coco_detection(predictions, dataset):
         boxes = prediction.bbox.tolist()
         scores = prediction.get_field("scores").tolist()
         labels = prediction.get_field("labels").tolist()
+        # 获取零件类别
+        component_scores = prediction.get_field("component_scores").tolist()
+        components = prediction.get_field("components").tolist()
 
         # 预测值和类别id之间的映射关系
         mapped_labels = [dataset.contiguous_category_id_to_json_id[i] for i in labels]
+        mapped_components = [dataset.contiguous_component_id_to_json_id[i] for i in components]
 
         coco_results.extend(
             [
                 {
                     "image_id": original_id,
                     "category_id": mapped_labels[k],
+                    "component_id": mapped_components[k],
                     "bbox": box,
-                    "score": scores[k],
+                    "score": scores[k] * component_scores[k],
+                    "component_scores": component_scores[k],
                 }
                 for k, box in enumerate(boxes)
             ]
         )
     return coco_results
 
-# 准备预测得到的segmentation格式
+# 准备预测得到的segmentation格式数据
 def prepare_for_coco_segmentation(predictions, dataset):
     import pycocotools.mask as mask_util
     import numpy as np
@@ -155,6 +171,10 @@ def prepare_for_coco_segmentation(predictions, dataset):
         scores = prediction.get_field("scores").tolist()
         labels = prediction.get_field("labels").tolist()
 
+        # 获取零件类别
+        component_scores = prediction.get_field("component_scores").tolist()
+        components = prediction.get_field("components").tolist()
+
         # rles = prediction.get_field('mask')
 
         rles = [
@@ -165,14 +185,18 @@ def prepare_for_coco_segmentation(predictions, dataset):
             rle["counts"] = rle["counts"].decode("utf-8")
 
         mapped_labels = [dataset.contiguous_category_id_to_json_id[i] for i in labels]
+        # 预测值和类别id之间的映射关系
+        mapped_components = [dataset.contiguous_component_id_to_json_id[i] for i in components]
 
         coco_results.extend(
             [
                 {
                     "image_id": original_id,
                     "category_id": mapped_labels[k],
+                    "component_id": mapped_components[k],
                     "segmentation": rle,
-                    "score": scores[k],
+                    "score": scores[k] * component_scores[k],
+                    "component_score": component_scores[k],
                 }
                 for k, rle in enumerate(rles)
             ]
@@ -180,35 +204,6 @@ def prepare_for_coco_segmentation(predictions, dataset):
     return coco_results
 
 
-def prepare_for_coco_keypoint(predictions, dataset):
-    # assert isinstance(dataset, COCODataset)
-    coco_results = []
-    for image_id, prediction in enumerate(predictions):
-        original_id = dataset.id_to_img_map[image_id]
-        if len(prediction.bbox) == 0:
-            continue
-
-        # TODO replace with get_img_info?
-        image_width = dataset.coco.imgs[original_id]['width']
-        image_height = dataset.coco.imgs[original_id]['height']
-        prediction = prediction.resize((image_width, image_height))
-        prediction = prediction.convert('xywh')
-
-        boxes = prediction.bbox.tolist()
-        scores = prediction.get_field('scores').tolist()
-        labels = prediction.get_field('labels').tolist()
-        keypoints = prediction.get_field('keypoints')
-        keypoints = keypoints.resize((image_width, image_height))
-        keypoints = keypoints.keypoints.view(keypoints.keypoints.shape[0], -1).tolist()
-
-        mapped_labels = [dataset.contiguous_category_id_to_json_id[i] for i in labels]
-
-        coco_results.extend([{
-            'image_id': original_id,
-            'category_id': mapped_labels[k],
-            'keypoints': keypoint,
-            'score': scores[k]} for k, keypoint in enumerate(keypoints)])
-    return coco_results
 
 # inspired from Detectron
 def evaluate_box_proposals(
@@ -338,11 +333,19 @@ def evaluate_predictions_on_coco(
 
     from pycocotools.coco import COCO
     from pycocotools.cocoeval import COCOeval
+    from .cardamageeval import Cardamageeval
+
 
     coco_dt = coco_gt.loadRes(str(json_result_file)) if coco_results else COCO()
 
+    # 进行类别的转换
+    coco_gt = coco_gt.transformTo24()
+    coco_dt = coco_dt.transformTo24()
+
     # coco_dt = coco_gt.loadRes(coco_results)
-    coco_eval = COCOeval(coco_gt, coco_dt, iou_type)
+    # coco_eval = COCOeval(coco_gt, coco_dt, iou_type)
+    coco_eval = Cardamageeval(coco_gt, coco_dt, iou_type)
+
     coco_eval.evaluate()
     coco_eval.accumulate()
     coco_eval.summarize()
@@ -363,11 +366,10 @@ class COCOResults(object):
             "ARm@1000",
             "ARl@1000",
         ],
-        "keypoints": ["AP", "AP50", "AP75", "APm", "APl"],
     }
 
     def __init__(self, *iou_types):
-        allowed_types = ("box_proposal", "bbox", "segm", "keypoints")
+        allowed_types = ("box_proposal", "bbox", "segm")
         assert all(iou_type in allowed_types for iou_type in iou_types)
         results = OrderedDict()
         for iou_type in iou_types:
@@ -380,8 +382,9 @@ class COCOResults(object):
         if coco_eval is None:
             return
         from pycocotools.cocoeval import COCOeval
+        from .cardamageeval import Cardamageeval
 
-        assert isinstance(coco_eval, COCOeval)
+        assert isinstance(coco_eval, Cardamageeval)
         s = coco_eval.stats
         iou_type = coco_eval.params.iouType
         res = self.results[iou_type]
@@ -423,32 +426,21 @@ def check_expected_results(results, expected_results, sigma_tol):
 
 
 if __name__ == '__main__':
-    # import torch
-    # pth_path = "/home/pengjinbo/kingpopen/Algorithm/Car/maskrcnn-benchmark-master/output_dir/inference/cardamage_2017_val/predictions.pth"
-    # result = torch.load(pth_path)
-    #
-    # cnt = 0
-    #
-    # for box in result:
-    #     print("box:", box)
-    #     fields = box.fields()
-    #     print('{} {}'.format('hello', 'world'))
-    #     print("fields:", fields)
-    #     for field in fields:
-    #         value = box.get_field(field)
-    #         print('{}:{}'.format(field, value))
-    #         print("field shape is:", np.array(value).shape)
-    #     cnt += 1
-    #     if cnt >= 3:
-    #         break
-    from collections import defaultdict
-    dict_test = defaultdict(list)
-    x11 = [1,1,1]
-    x12 = [1,2,2]
-    x14 = [1,4,4]
+    import torch
+    pth_path = "/home/pengjinbo/kingpopen/Algorithm/Car/maskrcnn-benchmark-master/output_dir/inference/cardamage_2017_val/predictions.pth"
+    result = torch.load(pth_path)
 
-    dict_test[1, 1].append(x11)
-    dict_test[1, 2].append(x12)
-    dict_test[1, 4].append(x14)
-    print("dict_test:", dict_test)
-    print("dict_test[1, 3]:", dict_test[1, 3])
+    cnt = 0
+
+    for box in result:
+        print("box:", box)
+        fields = box.fields()
+        print('{} {}'.format('hello', 'world'))
+        print("fields:", fields)
+        for field in fields:
+            value = box.get_field(field)
+            print('{}:{}'.format(field, value))
+            print("field shape is:", np.array(value).shape)
+        cnt += 1
+        if cnt >= 3:
+            break

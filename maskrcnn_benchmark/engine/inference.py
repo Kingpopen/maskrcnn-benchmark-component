@@ -14,6 +14,7 @@ from ..utils.timer import Timer, get_time_str
 from .bbox_aug import im_detect_bbox_aug
 
 
+# 进行模型的inference
 def compute_on_dataset(model, data_loader, device, bbox_aug, timer=None):
     model.eval()
     results_dict = {}
@@ -32,6 +33,7 @@ def compute_on_dataset(model, data_loader, device, bbox_aug, timer=None):
                     torch.cuda.synchronize()
                 timer.toc()
             output = [o.to(cpu_device) for o in output]
+        # 用字典的形式进行保存
         results_dict.update(
             {img_id: result for img_id, result in zip(image_ids, output)}
         )
@@ -81,6 +83,8 @@ def inference(
     total_timer = Timer()
     inference_timer = Timer()
     total_timer.tic()
+
+    # 进行模型的预测过程
     predictions = compute_on_dataset(model, data_loader, device, bbox_aug, inference_timer)
     # wait for all processes to complete before measuring the time
     synchronize()
@@ -100,6 +104,7 @@ def inference(
         )
     )
 
+    # 对多块GPU上的结果汇总
     predictions = _accumulate_predictions_from_multiple_gpus(predictions)
     if not is_main_process():
         return
@@ -113,8 +118,13 @@ def inference(
         expected_results=expected_results,
         expected_results_sigma_tol=expected_results_sigma_tol,
     )
-
+    # 进行测评
     return evaluate(dataset=dataset,
                     predictions=predictions,
                     output_folder=output_folder,
                     **extra_args)
+    # return
+
+
+
+

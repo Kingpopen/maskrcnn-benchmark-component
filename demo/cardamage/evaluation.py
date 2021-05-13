@@ -9,7 +9,7 @@ import os
 import torch
 from maskrcnn_benchmark.config import cfg
 from maskrcnn_benchmark.data import make_data_loader
-from maskrcnn_benchmark.engine.inference import inference
+from maskrcnn_benchmark.engine.inference import inference, inference_debug
 from maskrcnn_benchmark.modeling.detector import build_detection_model
 from maskrcnn_benchmark.utils.checkpoint import DetectronCheckpointer
 from maskrcnn_benchmark.utils.collect_env import collect_env_info
@@ -94,7 +94,13 @@ def main():
             mkdir(output_folder)
             output_folders[idx] = output_folder
     data_loaders_val = make_data_loader(cfg, is_train=False, is_distributed=distributed)
+
+    cnt = 0
+
     for output_folder, dataset_name, data_loader_val in zip(output_folders, dataset_names, data_loaders_val):
+
+        cnt += 1
+        print("data_loaders num:", cnt)
 
         inference(
             model,
@@ -111,5 +117,3 @@ def main():
         synchronize()
 
 
-if __name__ == "__main__":
-    main()

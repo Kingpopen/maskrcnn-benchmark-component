@@ -12,6 +12,7 @@ def coco_evaluation(
     expected_results,
     expected_results_sigma_tol,
 ):
+    # 如果是coco数据集类型 直接进行coco的测评
     if isinstance(dataset, COCODataset):
         return do_orig_coco_evaluation(
             dataset=dataset,
@@ -22,6 +23,8 @@ def coco_evaluation(
             expected_results=expected_results,
             expected_results_sigma_tol=expected_results_sigma_tol,
         )
+
+    # 如果是抽象类的类型（这个地方不太明白~）
     elif isinstance(dataset, AbstractDataset):
         return do_wrapped_coco_evaluation(
             dataset=dataset,
