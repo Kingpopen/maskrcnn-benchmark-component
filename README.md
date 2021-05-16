@@ -101,7 +101,7 @@ instances_test2017.json文件格式介绍：
 
 
 ## 文件介绍
-主要涉及**your_project_path/maskrcnn_benchmark/data/**中的相关文件。
+主要涉及**your_project_path/maskrcnn_benchmark/data**中的相关文件。
 ### 1. 数据集处理文件
 因为本项目添加了多分支的模型，所以添加了一个处理多分支数据集的类，具体见 ：
 **your_project_path/maskrcnn_benchmark/data/datasets/cardamage_util** (这是处理多分支COCO数据标注文件导入的工具包)
