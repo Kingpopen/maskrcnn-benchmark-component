@@ -403,5 +403,10 @@ if __name__ == '__main__':
     print("prob is:", prob)
     print("index is:", index)
 
+    x = [2, 1, 0, 1, 0, 1, 4]
+    x = torch.tensor(x)
+    x = x.nonzero().squeeze(1)
+    print("x:", x)
+
 
 

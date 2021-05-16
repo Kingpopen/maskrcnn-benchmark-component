@@ -194,7 +194,6 @@ class Masker(object):
     def __call__(self, masks, boxes):
         if isinstance(boxes, BoxList):
             boxes = [boxes]
-
         # Make some sanity check
         assert len(boxes) == len(masks), "Masks and boxes should have the same length."
 

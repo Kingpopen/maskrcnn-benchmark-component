@@ -256,7 +256,7 @@ class CarDamageDemo(object):
         # =========== 零件类别和损伤类别结合 ================
         components = predictions.get_field("components")
         num_classes = cfg.MODEL.ROI_BOX_HEAD.NUM_CLASSES
-        labels = (components - 1) * num_classes + labels
+        labels = (components - 1) * (num_classes - 1) + labels
 
         boxes = predictions.bbox
 
@@ -286,7 +286,7 @@ class CarDamageDemo(object):
         #================= 将零件类别和损伤类别标签整合====================
         components = predictions.get_field("components")
         num_classes = cfg.MODEL.ROI_BOX_HEAD.NUM_CLASSES
-        labels = (components - 1) * num_classes + labels
+        labels = (components - 1) * (num_classes - 1) + labels
 
         colors = self.compute_colors_for_labels(labels).tolist()
 
@@ -357,7 +357,7 @@ class CarDamageDemo(object):
         num_classes = cfg.MODEL.ROI_BOX_HEAD.NUM_CLASSES
         print("num_class:", num_classes)
 
-        labels = (np.array(components) - 1) * num_classes + np.array(labels)
+        labels = (np.array(components) - 1) * (num_classes - 1) + np.array(labels)
         labels = labels.tolist()
 
         labels = [self.CATEGORIES[i] for i in labels]
